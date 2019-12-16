@@ -1,5 +1,7 @@
 package com.dingtao.common.core;
 
+import android.os.Handler;
+
 import com.dingtao.common.bean.BDResult;
 import com.dingtao.common.bean.Result;
 import com.dingtao.common.core.exception.ApiException;
@@ -7,10 +9,13 @@ import com.dingtao.common.core.exception.CustomException;
 import com.dingtao.common.core.http.NetworkManager;
 
 import java.lang.reflect.ParameterizedType;
+import java.util.ArrayList;
+import java.util.LinkedList;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
@@ -53,16 +58,17 @@ public abstract class WDPresenter<T> {
 
         disposable = observable.subscribeOn(Schedulers.io())//将请求调度到子线程上
                 .observeOn(AndroidSchedulers.mainThread())//观察响应结果，把响应结果调度到主线程中处理
-                .onErrorReturn(new Function<Throwable,ApiException>() {//处理所有异常
+                .onErrorReturn(new Function<Throwable,Throwable>() {//处理所有异常
                     @Override
-                    public ApiException apply(Throwable throwable) throws Exception {
-                        return CustomException.handleException(throwable);
+                    public Throwable apply(Throwable throwable) throws Exception {
+                        return throwable;
                     }
                 })
-                .subscribe(getConsumer(args), new Consumer<ApiException>() {
+                .subscribe(getConsumer(args), new Consumer<Throwable>() {
                     @Override
-                    public void accept(ApiException e) throws Exception {
-                        dataCall.fail(e,args);
+                    public void accept(Throwable e) throws Exception {
+                        running = false;
+                        dataCall.fail(CustomException.handleException(e),args);
                     }
                 });
     }
